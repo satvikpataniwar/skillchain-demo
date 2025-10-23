@@ -1,4 +1,4 @@
-🪜 Step-by-Step: Where to Type “Fixed code spacing and errors”
+
 ✅ Step 1 — Go to your app.py file on GitHub
 
 Open your GitHub repo → skillchain-demo

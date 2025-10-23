@@ -104,6 +104,7 @@ if page == "Home":
     c1, c2 = st.columns(2)
    if c1.button("Issue Certificate"):
     st.query_params["page"] = "issue"
+
 if c2.button("Verify Certificate"):
     st.query_params["page"] = "verify"
 

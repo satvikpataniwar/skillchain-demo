@@ -1,0 +1,81 @@
+import streamlit as st
+import hashlib, json, os, io, base64
+from datetime import datetime
+import qrcode
+from PIL import Image
+
+LEDGER_FILE = "ledger.json"
+
+def now_iso(): return datetime.utcnow().isoformat()+"Z"
+def sha256_bytes(b): return hashlib.sha256(b).hexdigest()
+def ensure_ledger():
+    if not os.path.exists(LEDGER_FILE):
+        with open(LEDGER_FILE,"w") as f: json.dump({"blocks":[]},f)
+def load_ledger(): ensure_ledger(); return json.load(open(LEDGER_FILE))
+def save_ledger(l): json.dump(l,open(LEDGER_FILE,"w"),indent=2)
+def last_hash(l): return l["blocks"][-1]["blockHash"] if l["blocks"] else "0"*64
+
+def make_block(i,fhash,prev,issuer,filename):
+    b={"index":i,"timestamp":now_iso(),"issuer":issuer,"filename":filename,
+       "fileHash":fhash,"prevHash":prev}
+    b["blockHash"]=hashlib.sha256(json.dumps(b,sort_keys=True).encode()).hexdigest()
+    return b
+
+def qr_bytes(text):
+    qr=qrcode.QRCode(box_size=6,border=2);qr.add_data(text);qr.make(fit=True)
+    buf=io.BytesIO();qr.make_image().save(buf,format="PNG");return buf.getvalue()
+
+st.set_page_config(page_title="SkillChain",page_icon="🎓",layout="centered")
+st.title("🎓 SkillChain — Proof of Learning Network")
+page=st.sidebar.selectbox("Navigate",["Home","Issue","Verify","Ledger"])
+
+ensure_ledger()
+
+if page=="Home":
+    st.write("Upload, verify and view tamper-proof certificates.")
+
+elif page=="Issue":
+    st.header("📤 Issue Certificate")
+    f=st.file_uploader("Upload (pdf/png/jpg)",type=["pdf","png","jpg","jpeg"])
+    issuer=st.text_input("Issuer","Demo University")
+    if f and st.button("Issue"):
+        raw=f.read();fh=sha256_bytes(raw);l=load_ledger()
+        blk=make_block(len(l["blocks"]),fh,last_hash(l),issuer,f.name)
+        l["blocks"].append(blk);save_ledger(l)
+        st.success("Certificate recorded ✅");st.json(blk)
+        payload=json.dumps({"index":blk["index"],"blockHash":blk["blockHash"],"fileHash":blk["fileHash"]})
+        img=qr_bytes(payload);st.image(img,caption="Verification QR")
+        b64=base64.b64encode(img).decode()
+        st.markdown(f"[Download QR](data:image/png;base64,{b64})",unsafe_allow_html=True)
+
+elif page=="Verify":
+    st.header("🔍 Verify Certificate")
+    vf=st.file_uploader("Upload to verify",type=["pdf","png","jpg","jpeg"])
+    if vf and st.button("Verify File"):
+        raw=vf.read();fh=sha256_bytes(raw);l=load_ledger()
+        match=[b for b in l["blocks"] if b["fileHash"]==fh]
+        if match: st.success("✅ Verified"); st.json(match[0])
+        else: st.error("❌ Not found")
+    raw=st.text_area("Or paste hash / QR payload")
+    if st.button("Verify Text") and raw.strip():
+        l=load_ledger();ok=False
+        try:
+            obj=json.loads(raw)
+            for b in l["blocks"]:
+                if b["index"]==obj.get("index") and b["blockHash"]==obj.get("blockHash"):
+                    st.success("✅ Found");st.json(b);ok=True
+        except: pass
+        if not ok:
+            for b in l["blocks"]:
+                if b["fileHash"]==raw.strip() or b["blockHash"]==raw.strip():
+                    st.success("✅ Found");st.json(b);ok=True
+            if not ok: st.error("❌ No match")
+
+elif page=="Ledger":
+    st.header("📚 Ledger")
+    l=load_ledger();st.write(f"Total blocks: {len(l['blocks'])}")
+    for b in l["blocks"]:
+        with st.expander(f"Block #{b['index']}"):
+            st.json(b)
+
+st.markdown("---");st.caption("Built by Satvik • SkillChain Demo")

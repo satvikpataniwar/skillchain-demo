@@ -190,5 +190,5 @@ elif page == "View Ledger":
 st.markdown("---")
 st.caption("Built by TEAM Debuggers • SkillChain Hackathon Project • Fully functional verification demo 🚀")
 
-Final full SkillChain version
+
 

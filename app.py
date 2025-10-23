@@ -188,4 +188,4 @@ elif page == "View Ledger":
                 st.json(b)
 
 st.markdown("---")
-st.caption("Built by Satvik • SkillChain Hackathon Project • Fully functional verification demo 🚀")
+st.caption("Built by TEAM Debuggers • SkillChain Hackathon Project • Fully functional verification demo 🚀")
